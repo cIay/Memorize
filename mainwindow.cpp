@@ -3,6 +3,7 @@
 
 #include <QFileDialog>
 #include <QInputDialog>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -36,40 +37,53 @@ MainWindow::~MainWindow()
 }
 
 
-void MainWindow::openFile() {
-    QString file = QFileDialog::getOpenFileName(this, "OPEN A FILE");
+void MainWindow::openFile()
+{
+    QString file = QFileDialog::getOpenFileName(this, "Open File");
     if (!file.isNull()) {
         sourcetype = NONE;
         delete fd;
         fd = new FileData(file.toStdString());
-        fd->padBuffer(dv->calcPadding(fd->getSize()));
-        dv->loadData(fd->getBuffer(), fd->getSize());
-        sourcetype = FILE;
-        setLabeltext(0);
+        if (fd->getBuffer() != NULL) {
+            fd->padBuffer(dv->calcPadding(fd->getSize()));
+            dv->loadData(fd->getBuffer(), fd->getSize());
+            sourcetype = FILE;
+            QString fn = QString::fromStdString(fd->getFilename());
+            QWidget::setWindowTitle("Memorize - [" + fn.right(fn.size() - fn.lastIndexOf('/') - 1) + "]");
+            setLabeltext(0);
+        }
+        else {
+            QMessageBox::warning(this, "Memorize", "Chosen file is too large. Maximum size: " + QString::number(fd->getMaxsize()/1000000) + " MB");
+        }
     }
 }
 
-void MainWindow::selectProcess() {
+void MainWindow::selectProcess()
+{
     MemData::fillProcLists();
     QStringList processes;
     for (uint i = 0; i < MemData::getProcIDlist().size(); i++) {
         processes << QString::fromStdWString(MemData::getProcNamelist()[i]) + " (" + QString::number(MemData::getProcIDlist()[i]) + ")";
     }
     bool ok = false;
-    QString item = QInputDialog::getItem(this, "CHOOSE A PROCESS", "Process:", processes, 0, false, &ok);
+    QString item = QInputDialog::getItem(this, "Choose Process", "Process:", processes, processes.size()-1, false, &ok);
     if (ok) {
         QString pid = item.mid(item.lastIndexOf('(')+1, item.lastIndexOf(')') - item.lastIndexOf('(') - 1);
         sourcetype = NONE;
         delete md;
         md = new MemData(pid.toULong());
-        md->padBuffer(dv->calcPadding(md->getSize()));
-        dv->loadData((char*) md->getBuffer(), md->getSize());
-        sourcetype = MEM;
-        setLabeltext(0);
+        if (md->getBuffer() != NULL) {
+            md->padBuffer(dv->calcPadding(md->getSize()));
+            dv->loadData((char*) md->getBuffer(), md->getSize());
+            sourcetype = MEM;
+            QWidget::setWindowTitle("Memorize - [" + item + "]");
+            setLabeltext(0);
+        }
     }
 }
 
-void MainWindow::setLabeltext(int pos) {
+void MainWindow::setLabeltext(long pos)
+{
     QString labeltext;
     unsigned long long addr;
     switch(sourcetype) {
@@ -87,13 +101,15 @@ void MainWindow::setLabeltext(int pos) {
     ui->addrLabel->setText(labeltext);
 }
 
-void MainWindow::onScroll(int value) {
+void MainWindow::onScroll(int value)
+{
     if (value == dv->getScrollbar()->minimum() || value == dv->getScrollbar()->maximum()) {
         setLabeltext(dv->getOffset());
     }
 }
 
-bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
     if (obj == dv && sourcetype != NONE) {
         if (event->type() == QEvent::MouseMove) {
             QMouseEvent *me = static_cast<QMouseEvent*>(event);

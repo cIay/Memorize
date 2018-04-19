@@ -7,7 +7,9 @@ std::vector<DWORD> MemData::proc_idlist;
 
 MemData::MemData(DWORD pid) :
     buf(NULL),
-    size(0)
+    size(0),
+    regions(NULL),
+    region_sizes(NULL)
 {
     readMem(pid);
 }
@@ -18,7 +20,8 @@ MemData::~MemData() {
     free(region_sizes);
 }
 
-void MemData::padBuffer(int padding) {
+void MemData::padBuffer(int padding)
+{
     if (padding > 0) {
         buf = (unsigned char*) realloc(buf, (size+padding)*sizeof(unsigned char));
         if (buf == NULL) {
@@ -52,7 +55,8 @@ void MemData::fillProcLists()
     } while (Process32Next(hsnap, &proc_entry));
 }
 
-void* MemData::findAddr(int index) {
+void* MemData::findAddr(long index)
+{
     int running_total = 0;
     for (int i = 0; i < n_regions; i++) {
         running_total += region_sizes[i];

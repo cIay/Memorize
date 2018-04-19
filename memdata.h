@@ -16,7 +16,7 @@ public:
     static std::vector<DWORD> getProcIDlist() {return proc_idlist; }
     unsigned char* getBuffer() { return buf; }
     unsigned long getSize(){ return size; }
-    void* findAddr(int);
+    void* findAddr(long);
 
 private:
     void readMem(DWORD);

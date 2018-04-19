@@ -1,6 +1,6 @@
 #include "datavis.h"
 
-DataVis::DataVis(QWidget *parent, char *buf, int size, QImage::Format img_format) :
+DataVis::DataVis(QWidget *parent, char *buf, long size, QImage::Format img_format) :
     QWidget(parent),
     scrollarea(new QScrollArea(this)),
     scrollbar(scrollarea->verticalScrollBar()),
@@ -66,7 +66,7 @@ void DataVis::maskPadding()
     pix->setMask(QBitmap::fromData(pix->size(), mask));
 }
 
-void DataVis::loadData(char *buf, int size, QImage::Format img_format)
+void DataVis::loadData(char *buf, long size, QImage::Format img_format)
 {
     data = buf;
     n_bytes = size;
@@ -82,16 +82,15 @@ void DataVis::loadData(char *buf, int size, QImage::Format img_format)
     bool single_page = false;
     if (n_bytes < w*h*depth) {
         single_page = true;
-        new_h = n_bytes / w;
-        if (n_bytes % w != 0)
+        new_h = n_bytes / (w*depth);
+        if (n_bytes % (w*depth) != 0)
             new_h++;
     }
 
     QImage img((uchar*)data, w, new_h, format);
-    if (pix != NULL)
-        pix->convertFromImage(img);
-    else
-        pix = new QPixmap(QPixmap::fromImage(img));
+
+    delete pix;
+    pix = new QPixmap(QPixmap::fromImage(img));
 
     if (single_page)
         maskPadding();

@@ -29,7 +29,7 @@ private:
     Datasource sourcetype;
     FileData *fd;
     MemData *md;
-    void setLabeltext(int);
+    void setLabeltext(long);
 
 private slots:
     void onScroll(int);
