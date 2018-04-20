@@ -61,7 +61,11 @@ void DataVis::refresh()
             new_h++;
     }
 
-    QImage img((uchar*)data+offset, w, new_h, format);
+    long nudge = 0;
+    if (n_bytes-offset < w*new_h*depth)
+        nudge =  (w*new_h*depth) - (n_bytes-offset);
+
+    QImage img((uchar*)data+offset-nudge, w, new_h, format);
 
     delete pix;
     pix = new QPixmap(QPixmap::fromImage(img));
