@@ -16,6 +16,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
     ui->mainToolBar->addAction(this->style()->standardIcon(QStyle::SP_DirOpenIcon), "Open File", this, SLOT(openFile()));
     ui->mainToolBar->addAction(this->style()->standardIcon(QStyle::SP_ComputerIcon), "Select Process", this, SLOT(selectProcess()));
+    ui->mainToolBar->addSeparator();
+    ui->mainToolBar->addAction(this->style()->standardIcon(QStyle::SP_BrowserReload), "Refresh", this, SLOT(reload()));
 
     dv = new DataVis(ui->containerWidget);
     dv->setMouseTracking(true);
@@ -26,6 +28,11 @@ MainWindow::MainWindow(QWidget *parent) :
     layout->setContentsMargins(0,0,0,0);
     ui->containerWidget->setLayout(layout);
 
+    ui->horizontalSlider->setMinimum(1);
+    ui->horizontalSlider->setMaximum(dv->getMaxWidth()/8);
+    ui->horizontalSlider->setSliderPosition(dv->getWidth()/8);
+
+    connect(ui->horizontalSlider, SIGNAL(valueChanged(int)), this, SLOT(onSlide(int)));
     connect(dv->getScrollbar(), SIGNAL(valueChanged(int)), this, SLOT(onScroll(int)));
 }
 
@@ -36,10 +43,8 @@ MainWindow::~MainWindow()
     delete md;
 }
 
-
-void MainWindow::openFile()
+void MainWindow::loadFile()
 {
-    QString file = QFileDialog::getOpenFileName(this, "Open File");
     if (!file.isNull()) {
         sourcetype = NONE;
         delete fd;
@@ -50,11 +55,32 @@ void MainWindow::openFile()
             sourcetype = FILE;
             QString fn = QString::fromStdString(fd->getFilename());
             QWidget::setWindowTitle("Memorize - [" + fn.right(fn.size() - fn.lastIndexOf('/') - 1) + "]");
-            setLabeltext(0);
+            setLabeltext(dv->getOffset());
         }
         else {
             QMessageBox::warning(this, "Memorize", "Chosen file is too large. Maximum size: " + QString::number(fd->getMaxsize()/1000000) + " MB");
         }
+    }
+}
+
+void MainWindow::openFile()
+{
+    file = QFileDialog::getOpenFileName(this, "Open File");
+    loadFile();
+}
+
+void MainWindow::loadProcess()
+{
+    QString pid = proc.mid(proc.lastIndexOf('(')+1, proc.lastIndexOf(')') - proc.lastIndexOf('(') - 1);
+    sourcetype = NONE;
+    delete md;
+    md = new MemData(pid.toULong());
+    if (md->getBuffer() != NULL) {
+        md->padBuffer(dv->calcPadding(md->getSize()));
+        dv->loadData((char*) md->getBuffer(), md->getSize());
+        sourcetype = MEM;
+        QWidget::setWindowTitle("Memorize - [" + proc + "]");
+        setLabeltext(dv->getOffset());
     }
 }
 
@@ -66,20 +92,18 @@ void MainWindow::selectProcess()
         processes << QString::fromStdWString(MemData::getProcNamelist()[i]) + " (" + QString::number(MemData::getProcIDlist()[i]) + ")";
     }
     bool ok = false;
-    QString item = QInputDialog::getItem(this, "Choose Process", "Process:", processes, processes.size()-1, false, &ok);
+    proc = QInputDialog::getItem(this, "Choose Process", "Process:", processes, processes.size()-1, false, &ok);
     if (ok) {
-        QString pid = item.mid(item.lastIndexOf('(')+1, item.lastIndexOf(')') - item.lastIndexOf('(') - 1);
-        sourcetype = NONE;
-        delete md;
-        md = new MemData(pid.toULong());
-        if (md->getBuffer() != NULL) {
-            md->padBuffer(dv->calcPadding(md->getSize()));
-            dv->loadData((char*) md->getBuffer(), md->getSize());
-            sourcetype = MEM;
-            QWidget::setWindowTitle("Memorize - [" + item + "]");
-            setLabeltext(0);
-        }
+        loadProcess();
     }
+}
+
+void MainWindow::reload()
+{
+    if (sourcetype == FILE)
+        loadFile();
+    else if (sourcetype == MEM)
+        loadProcess();
 }
 
 void MainWindow::setLabeltext(long pos)
@@ -99,6 +123,12 @@ void MainWindow::setLabeltext(long pos)
             labeltext = "";
     }
     ui->addrLabel->setText(labeltext);
+}
+
+void MainWindow::onSlide(int value)
+{
+    dv->setWidth(value*8);
+    dv->refresh();
 }
 
 void MainWindow::onScroll(int value)

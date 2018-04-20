@@ -2,11 +2,14 @@
 
 DataVis::DataVis(QWidget *parent, char *buf, long size, QImage::Format img_format) :
     QWidget(parent),
+    data(NULL),
+    n_bytes(0),
     scrollarea(new QScrollArea(this)),
     scrollbar(scrollarea->verticalScrollBar()),
     label(new QLabel(scrollarea)),
     pix(NULL),
-    w(128), h(parent->height()*2),
+    w(16*8), h(parent->height()*2),
+    max_w(w*8),
     offset(0),
     cur_scaling(1)
 {
@@ -28,54 +31,25 @@ DataVis::DataVis(QWidget *parent, char *buf, long size, QImage::Format img_forma
     connect(scrollbar, SIGNAL(valueChanged(int)), this, SLOT(onScroll(int)));
 }
 
-void DataVis::scaleImage(float scale_factor)
-{
-    if (cur_scaling * scale_factor < 1 || cur_scaling * scale_factor > 12)
-        return;
-    cur_scaling *= scale_factor;
-    label->setPixmap(pix->scaled(pix->size() * cur_scaling, Qt::KeepAspectRatioByExpanding, Qt::FastTransformation));
-    label->resize(label->pixmap()->size());
-}
-
-void DataVis::mousePressEvent(QMouseEvent *event)
-{
-    if (pix != NULL) {
-        if (event->button() == 1) { // left click
-            scaleImage(1.25); // zoom in
-        }
-        else if (event->button() == 2) { // right click
-            scaleImage(0.8); // zoom out
-        }
-    }
-}
-
-void DataVis::maskPadding()
-{
-    uchar mask[w*h/8];
-    for (int i = 0; i < w*h/8; i++) {
-        if (i < (n_bytes-offset)/(depth*8)) {
-            mask[i] = 0xFF;
-        }
-        else if (i == (n_bytes-offset)/(depth*8)) {
-            mask[i] = 0xFF >> (8 - ((n_bytes-offset)/depth - i*8));
-        }
-        else {
-            mask[i] = 0;
-        }
-    }
-    pix->setMask(QBitmap::fromData(pix->size(), mask));
-}
-
 void DataVis::loadData(char *buf, long size, QImage::Format img_format)
 {
+    if (size != n_bytes)
+        offset = 0;
     data = buf;
     n_bytes = size;
     format = img_format;
-    offset = 0;
     depth = QImage::toPixelFormat(format).bitsPerPixel() / 8;
     padding = calcPadding(n_bytes);
 
-    if (buf == NULL || size <= 0)
+    refresh();
+
+    if (offset == 0)
+        scrollbar->setValue(scrollbar->minimum());
+}
+
+void DataVis::refresh()
+{
+    if (data == NULL || n_bytes <= 0)
         return;
 
     int new_h = h;
@@ -87,7 +61,7 @@ void DataVis::loadData(char *buf, long size, QImage::Format img_format)
             new_h++;
     }
 
-    QImage img((uchar*)data, w, new_h, format);
+    QImage img((uchar*)data+offset, w, new_h, format);
 
     delete pix;
     pix = new QPixmap(QPixmap::fromImage(img));
@@ -97,7 +71,6 @@ void DataVis::loadData(char *buf, long size, QImage::Format img_format)
 
     scaleImage(1);
     scrollarea->setWidget(label);
-    scrollbar->setValue(scrollbar->minimum());
 }
 
 void DataVis::loadNext(int step, int new_scroll)
@@ -122,11 +95,13 @@ void DataVis::loadNext(int step, int new_scroll)
     }
 
     QImage img((uchar*)(data+offset), w, h, format);
-    pix->convertFromImage(img);
 
-    if (offset == end) {
+    delete pix;
+    pix = new QPixmap(QPixmap::fromImage(img));
+    //pix->convertFromImage(img);
+
+    if (offset == end)
         maskPadding();
-    }
 
     scaleImage(1);
     scrollarea->setWidget(label);
@@ -142,5 +117,43 @@ void DataVis::onScroll(int value)
     }
     else if (value == scrollbar->maximum()) { // scrolling down
         loadNext(step, scrollbar->minimum()+1);
+    }
+}
+
+void DataVis::maskPadding()
+{
+    uchar mask[w*h/8];
+    for (int i = 0; i < w*h/8; i++) {
+        if (i < (n_bytes-offset)/(depth*8)) {
+            mask[i] = 0xFF;
+        }
+        else if (i == (n_bytes-offset)/(depth*8)) {
+            mask[i] = 0xFF >> (8 - ((n_bytes-offset)/depth - i*8));
+        }
+        else {
+            mask[i] = 0;
+        }
+    }
+    pix->setMask(QBitmap::fromData(pix->size(), mask));
+}
+
+void DataVis::scaleImage(float scale_factor)
+{
+    if (cur_scaling * scale_factor < 1 || cur_scaling * scale_factor > 12)
+        return;
+    cur_scaling *= scale_factor;
+    label->setPixmap(pix->scaled(pix->size() * cur_scaling, Qt::KeepAspectRatioByExpanding, Qt::FastTransformation));
+    label->resize(label->pixmap()->size());
+}
+
+void DataVis::mousePressEvent(QMouseEvent *event)
+{
+    if (pix != NULL) {
+        if (event->button() == 1) { // left click
+            scaleImage(1.25); // zoom in
+        }
+        else if (event->button() == 2) { // right click
+            scaleImage(0.8); // zoom out
+        }
     }
 }

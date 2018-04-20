@@ -29,10 +29,16 @@ private:
     Datasource sourcetype;
     FileData *fd;
     MemData *md;
+    QString file;
+    QString proc;
+    void loadFile();
+    void loadProcess();
     void setLabeltext(long);
 
 private slots:
+    void onSlide(int);
     void onScroll(int);
+    void reload();
     void openFile();
     void selectProcess();
 };

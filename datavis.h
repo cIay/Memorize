@@ -20,12 +20,15 @@ public:
                      long size = 0,
                      QImage::Format img_format = QImage::Format_RGB32);
     void loadData(char*, long, QImage::Format img_format = QImage::Format_RGB32);
-    int calcPadding(long size) { return ((w*depth) - (size % (w*depth))); }
+    void refresh();
+    int calcPadding(long size) { return ((max_w*depth) - (size % (max_w*depth))); }
     QPoint getPoint(QMouseEvent* me) { return label->mapFromParent(me->pos()); }
     int getNBytes() { return n_bytes; }
     int getPixelDepth() { return depth; }
     int getWidth() { return w; }
+    void setWidth(int new_w) { w = new_w; }
     int getHeight() { return h; }
+    int getMaxWidth() { return max_w; }
     int getOffset() { return offset; }
     float getScaling() { return cur_scaling; }
     QScrollBar* getScrollbar() { return scrollbar; }
@@ -47,6 +50,7 @@ private:
     QLabel *label;
     QPixmap *pix;
     int w, h;
+    int max_w;
     long offset;
     float cur_scaling;
 
