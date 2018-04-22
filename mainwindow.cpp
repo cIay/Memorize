@@ -45,28 +45,29 @@ MainWindow::~MainWindow()
 
 void MainWindow::loadFile()
 {
-    if (!file.isNull()) {
-        sourcetype = NONE;
-        delete fd;
-        fd = new FileData(file.toStdString());
-        if (fd->getBuffer() != NULL) {
-            fd->padBuffer(dv->calcPadding(fd->getSize()));
-            dv->loadData(fd->getBuffer(), fd->getSize());
-            sourcetype = FILE;
-            QString fn = QString::fromStdString(fd->getFilename());
-            QWidget::setWindowTitle("Memorize - [" + fn.right(fn.size() - fn.lastIndexOf('/') - 1) + "]");
-            setLabeltext(dv->getOffset());
-        }
-        else {
-            QMessageBox::warning(this, "Memorize", "Chosen file is too large. Maximum size: " + QString::number(fd->getMaxsize()/1000000) + " MB");
-        }
+    sourcetype = NONE;
+    delete fd;
+    fd = new FileData(file.toStdString());
+    if (fd->getBuffer() != NULL) {
+        fd->padBuffer(dv->calcPadding(fd->getSize()));
+        dv->loadData(fd->getBuffer(), fd->getSize());
+        sourcetype = FILE;
+        QString fn = QString::fromStdString(fd->getFilename());
+        QWidget::setWindowTitle("Memorize - [" + fn.right(fn.size() - fn.lastIndexOf('/') - 1) + "]");
+        setLabeltext(dv->getOffset());
+    }
+    else {
+        QMessageBox::warning(this, "Memorize", "Chosen file is too large. Maximum size: " + QString::number(fd->getMaxsize()/1000000) + " MB");
     }
 }
 
 void MainWindow::openFile()
 {
-    file = QFileDialog::getOpenFileName(this, "Open File");
-    loadFile();
+    QString tmp = QFileDialog::getOpenFileName(this, "Open File");
+    if (!tmp.isNull()) {
+        file = tmp;
+        loadFile();
+    }
 }
 
 void MainWindow::loadProcess()
@@ -92,8 +93,9 @@ void MainWindow::selectProcess()
         processes << QString::fromStdWString(MemData::getProcNamelist()[i]) + " (" + QString::number(MemData::getProcIDlist()[i]) + ")";
     }
     bool ok = false;
-    proc = QInputDialog::getItem(this, "Choose Process", "Process:", processes, processes.size()-1, false, &ok);
+    QString tmp = QInputDialog::getItem(this, "Choose Process", "Process:", processes, processes.size()-1, false, &ok);
     if (ok) {
+        proc = tmp;
         loadProcess();
     }
 }

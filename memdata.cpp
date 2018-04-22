@@ -64,15 +64,16 @@ void MemData::readMem(DWORD pid)
     MEMORY_BASIC_INFORMATION info;
     unsigned char *addr = NULL;
 
-    int n_regions = 0;
+    //int n_regions = 0;
     long est_size = 0;
     while (VirtualQueryEx(hproc, addr, &info, sizeof(info)) == sizeof(info)) {
         if (info.Protect == PAGE_READWRITE && info.Type == MEM_PRIVATE) {
             est_size += info.RegionSize;
         }
         addr += info.RegionSize;
-        n_regions++;
+        //n_regions++;
     }
+
     buf = (unsigned char*) malloc(est_size * sizeof(unsigned char));
     if (buf == NULL) {
         std::cerr << "Error: realloc() failed" << std::endl;
@@ -83,11 +84,17 @@ void MemData::readMem(DWORD pid)
         std::cerr << "Error: realloc() failed" << std::endl;
         exit(EXIT_FAILURE);
     }
+
     addr = NULL;
 
     while (VirtualQueryEx(hproc, addr, &info, sizeof(info)) == sizeof(info)) {
         if (info.Protect == PAGE_READWRITE && info.Type == MEM_PRIVATE) {
             size += info.RegionSize;
+            if (size > maxsize) {
+                std::cerr << "Warning: Memory limit reached" << std::endl;
+                size -= info.RegionSize;
+                break;
+            }
             if (size > est_size) {
                 buf = (unsigned char*) realloc(buf, size * sizeof(unsigned char));
                 if (buf == NULL) {
@@ -99,7 +106,7 @@ void MemData::readMem(DWORD pid)
             if (ReadProcessMemory(hproc, addr, buf + (size-info.RegionSize), info.RegionSize, &bytes_read) == 0) {
                 std::cerr << "Warning: ReadProcessMemory() failed with error " + std::to_string(GetLastError()) << std::endl;
                 size -= info.RegionSize;
-                break;
+                continue;
             }
             else {
                 if (size > est_size) {

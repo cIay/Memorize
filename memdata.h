@@ -25,6 +25,7 @@ private:
     unsigned char *buf;
     long size;
     void **addrbuf;
+    const long maxsize = 600000000; // 600mb
 };
 
 #endif // MEMDATA_H

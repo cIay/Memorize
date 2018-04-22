@@ -19,7 +19,7 @@ private:
     const std::string filename;
     char *buf;
     long size;
-    const long maxsize = 400000000; // 400mb
+    const long maxsize = 1000000000; // 1000mb
 };
 
 #endif // FILEDATA_H
