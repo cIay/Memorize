@@ -29,7 +29,7 @@ public:
     void setWidth(int new_w) { w = new_w; }
     int getHeight() { return h; }
     int getMaxWidth() { return max_w; }
-    int getOffset() { return offset; }
+    long getOffset() { return offset; }
     float getScaling() { return cur_scaling; }
     QScrollBar* getScrollbar() { return scrollbar; }
 

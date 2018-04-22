@@ -1,5 +1,7 @@
 #include "datavis.h"
 
+#include <QDebug>
+
 DataVis::DataVis(QWidget *parent, char *buf, long size, QImage::Format img_format) :
     QWidget(parent),
     data(NULL),
@@ -8,7 +10,7 @@ DataVis::DataVis(QWidget *parent, char *buf, long size, QImage::Format img_forma
     scrollbar(scrollarea->verticalScrollBar()),
     label(new QLabel(scrollarea)),
     pix(NULL),
-    w(16*8), h(parent->height()*2),
+    w(16*8), h(1800),
     max_w(w*8),
     offset(0),
     cur_scaling(1)
@@ -62,10 +64,11 @@ void DataVis::refresh()
     }
 
     long nudge = 0;
-    if (n_bytes-offset < w*new_h*depth)
-        nudge =  (w*new_h*depth) - (n_bytes-offset);
+    if (n_bytes+padding-offset < w*new_h*depth)
+        nudge = (w*new_h*depth) - (n_bytes+padding-offset);
+    offset -= nudge;
 
-    QImage img((uchar*)data+offset-nudge, w, new_h, format);
+    QImage img((uchar*)(data+offset), w, new_h, format);
 
     delete pix;
     pix = new QPixmap(QPixmap::fromImage(img));
@@ -95,8 +98,10 @@ void DataVis::loadNext(int step, int new_scroll)
             offset +=step;
         else
             offset = end;
-
     }
+
+    if (n_bytes+padding < w*h*depth)
+        return;
 
     QImage img((uchar*)(data+offset), w, h, format);
 

@@ -15,18 +15,16 @@ public:
     static std::vector<std::wstring> getProcNamelist() { return proc_namelist; }
     static std::vector<DWORD> getProcIDlist() {return proc_idlist; }
     unsigned char* getBuffer() { return buf; }
-    unsigned long getSize(){ return size; }
-    void* findAddr(long);
+    long getSize(){ return size; }
+    void* findAddr(long index) { return (index < size) ? addrbuf[index] : NULL; }
 
 private:
     void readMem(DWORD);
     static std::vector<std::wstring> proc_namelist;
     static std::vector<DWORD> proc_idlist;
     unsigned char *buf;
-    unsigned long size;
-    void **regions;
-    SIZE_T *region_sizes;
-    int n_regions;
+    long size;
+    void **addrbuf;
 };
 
 #endif // MEMDATA_H
