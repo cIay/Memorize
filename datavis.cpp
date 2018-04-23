@@ -183,7 +183,13 @@ void DataVis::scaleImage(float scale_factor)
     cur_scaling *= scale_factor;
     label->setPixmap(pix->scaled(pix->size() * cur_scaling, Qt::KeepAspectRatioByExpanding, Qt::FastTransformation));
     label->resize(label->pixmap()->size());
+
+    scrollarea->verticalScrollBar()->setValue((scale_factor * scrollarea->verticalScrollBar()->value()) +
+                                                ((scale_factor - 1) * scrollarea->verticalScrollBar()->pageStep()/2));
+    scrollarea->horizontalScrollBar()->setValue((scale_factor * scrollarea->horizontalScrollBar()->value()) +
+                                                ((scale_factor - 1) * scrollarea->horizontalScrollBar()->pageStep()/2));
 }
+
 
 void DataVis::mousePressEvent(QMouseEvent *event)
 {
