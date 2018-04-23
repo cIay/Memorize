@@ -60,6 +60,7 @@ void MainWindow::loadFile()
         QMessageBox::warning(this, "Memorize", "Chosen file is too large. Maximum size: " + QString::number(fd->getMaxsize()/1000000) + " MB");
     }
     else {
+        QWidget::setWindowTitle("Memorize");
         setLabeltext(0);
         dv->clearData();
     }
@@ -88,6 +89,7 @@ void MainWindow::loadProcess()
         setLabeltext(dv->getOffset());
     }
     else {
+        QWidget::setWindowTitle("Memorize");
         setLabeltext(0);
         dv->clearData();
     }
