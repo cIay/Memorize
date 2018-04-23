@@ -31,10 +31,15 @@ void FileData::readFile()
 {
     std::ifstream f(filename, std::ios::in | std::ios::binary);
 
+    if (!f) {
+        free(buf); buf = NULL;
+        return;
+    }
+
     f.seekg(0, std::ios::end);
     size = f.tellg();
     if (size > maxsize || size < 0) {
-        size = 0;
+        free(buf); buf = NULL;
         return;
     }
     f.seekg(0, std::ios::beg);

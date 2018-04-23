@@ -8,14 +8,16 @@ std::vector<DWORD> MemData::proc_idlist;
 MemData::MemData(DWORD pid) :
     buf(NULL),
     size(0),
-    addrbuf(NULL)
+    regions(NULL),
+    region_sizes(NULL)
 {
     readMem(pid);
 }
 
 MemData::~MemData() {
     free(buf);
-    free(addrbuf);
+    free(regions);
+    free(region_sizes);
 }
 
 void MemData::padBuffer(int padding)
@@ -53,25 +55,44 @@ void MemData::fillProcLists()
     } while (Process32Next(hsnap, &proc_entry));
 }
 
+void* MemData::findAddr(long index)
+{
+    int running_total = 0;
+    for (int i = 0; i < n_regions; i++) {
+        running_total += region_sizes[i];
+        if (index < running_total) {
+            long offset = index - (running_total - region_sizes[i]);
+            return ((unsigned char*)regions[i]) + offset;
+        }
+    }
+    return NULL;
+}
+
 void MemData::readMem(DWORD pid)
 {
     HANDLE hproc = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, false, pid);
     if (hproc == NULL) {
         std::cerr << "OpenProcess() failed with error " + std::to_string(GetLastError()) << std::endl;
+        free(buf); buf = NULL;
         return;
     }
 
     MEMORY_BASIC_INFORMATION info;
     unsigned char *addr = NULL;
 
-    //int n_regions = 0;
     long est_size = 0;
+    int est_regions = 0;
     while (VirtualQueryEx(hproc, addr, &info, sizeof(info)) == sizeof(info)) {
         if (info.Protect == PAGE_READWRITE && info.Type == MEM_PRIVATE) {
             est_size += info.RegionSize;
         }
         addr += info.RegionSize;
-        //n_regions++;
+        est_regions++;
+    }
+
+    if (est_regions == 0) {
+        free(buf); buf = NULL;
+        return;
     }
 
     buf = (unsigned char*) malloc(est_size * sizeof(unsigned char));
@@ -79,13 +100,20 @@ void MemData::readMem(DWORD pid)
         std::cerr << "Error: realloc() failed" << std::endl;
         exit(EXIT_FAILURE);
     }
-    addrbuf = (void**) malloc(est_size * sizeof(void*));
-    if (addrbuf == NULL) {
-        std::cerr << "Error: realloc() failed" << std::endl;
+
+    regions = (void**) malloc(est_regions * sizeof(void*));
+    if (regions == NULL) {
+        std::cerr << "Error: malloc() failed" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    region_sizes = (SIZE_T*) malloc(est_regions * sizeof(SIZE_T));
+    if (region_sizes == NULL) {
+        std::cerr << "Error: malloc() failed" << std::endl;
         exit(EXIT_FAILURE);
     }
 
     addr = NULL;
+    n_regions = 0;
 
     while (VirtualQueryEx(hproc, addr, &info, sizeof(info)) == sizeof(info)) {
         if (info.Protect == PAGE_READWRITE && info.Type == MEM_PRIVATE) {
@@ -102,24 +130,29 @@ void MemData::readMem(DWORD pid)
                     exit(EXIT_FAILURE);
                 }
             }
+
             SIZE_T bytes_read;
             if (ReadProcessMemory(hproc, addr, buf + (size-info.RegionSize), info.RegionSize, &bytes_read) == 0) {
                 std::cerr << "Warning: ReadProcessMemory() failed with error " + std::to_string(GetLastError()) << std::endl;
                 size -= info.RegionSize;
                 continue;
             }
-            else {
-                if (size > est_size) {
-                    addrbuf = (void**) realloc(addrbuf, size * sizeof(void*));
-                    if (addrbuf == NULL) {
-                        std::cerr << "Error: realloc() failed" << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
+
+            n_regions++;
+            if (n_regions > est_regions) {
+                regions = (void**) realloc(regions, n_regions * sizeof(void*));
+                if (regions == NULL) {
+                    std::cerr << "Error: realloc() failed" << std::endl;
+                    exit(EXIT_FAILURE);
                 }
-                for (unsigned int i = 0; i < info.RegionSize; i++) {
-                    addrbuf[size-info.RegionSize+i] = addr+i;
+                region_sizes = (SIZE_T*) realloc(region_sizes, n_regions * sizeof(SIZE_T));
+                if (regions == NULL) {
+                    std::cerr << "Error: realloc() failed" << std::endl;
+                    exit(EXIT_FAILURE);
                 }
             }
+            regions[n_regions-1] = addr;
+            region_sizes[n_regions-1] = info.RegionSize;
         }
         addr += info.RegionSize;
     }

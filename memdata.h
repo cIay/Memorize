@@ -16,7 +16,7 @@ public:
     static std::vector<DWORD> getProcIDlist() {return proc_idlist; }
     unsigned char* getBuffer() { return buf; }
     long getSize(){ return size; }
-    void* findAddr(long index) { return (index < size) ? addrbuf[index] : NULL; }
+    void* findAddr(long);
 
 private:
     void readMem(DWORD);
@@ -24,8 +24,10 @@ private:
     static std::vector<DWORD> proc_idlist;
     unsigned char *buf;
     long size;
-    void **addrbuf;
-    const long maxsize = 600000000; // 600mb
+    const long maxsize = 1000000000; // 1000mb
+    void **regions;
+    SIZE_T *region_sizes;
+    int n_regions;
 };
 
 #endif // MEMDATA_H

@@ -20,8 +20,9 @@ public:
                      long size = 0,
                      QImage::Format img_format = QImage::Format_RGB32);
     void loadData(char*, long, QImage::Format img_format = QImage::Format_RGB32);
+    void clearData();
     void refresh();
-    int calcPadding(long size) { return ((max_w*depth) - (size % (max_w*depth))); }
+    int calcPadding(long);
     QPoint getPoint(QMouseEvent* me) { return label->mapFromParent(me->pos()); }
     int getNBytes() { return n_bytes; }
     int getPixelDepth() { return depth; }

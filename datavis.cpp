@@ -33,10 +33,23 @@ DataVis::DataVis(QWidget *parent, char *buf, long size, QImage::Format img_forma
     connect(scrollbar, SIGNAL(valueChanged(int)), this, SLOT(onScroll(int)));
 }
 
+void DataVis::clearData()
+{
+    data = NULL;
+    n_bytes = 0;
+    offset = 0;
+    delete pix; pix = NULL;
+    label->resize(0, 0);
+    label->clear();
+}
+
 void DataVis::loadData(char *buf, long size, QImage::Format img_format)
 {
-    if (size != n_bytes)
+    bool reset_pos = false;
+    if (size != n_bytes) {
+        reset_pos = true;
         offset = 0;
+    }
     data = buf;
     n_bytes = size;
     format = img_format;
@@ -45,7 +58,7 @@ void DataVis::loadData(char *buf, long size, QImage::Format img_format)
 
     refresh();
 
-    if (offset == 0)
+    if (reset_pos)
         scrollbar->setValue(scrollbar->minimum());
 }
 
@@ -58,15 +71,22 @@ void DataVis::refresh()
     bool single_page = false;
     if (n_bytes < w*h*depth) {
         single_page = true;
-        new_h = n_bytes / (w*depth);
-        if (n_bytes % (w*depth) != 0)
+        new_h = (n_bytes) / (w*depth);
+        if ((n_bytes) % (w*depth) != 0)
             new_h++;
     }
 
     long nudge = 0;
     if (n_bytes+padding-offset < w*new_h*depth)
         nudge = (w*new_h*depth) - (n_bytes+padding-offset);
-    offset -= nudge;
+
+    if (nudge <= offset) {
+        offset -= nudge;
+    }
+    else {
+        qDebug() << "Error: Attempted negative offset";
+        return;
+    }
 
     QImage img((uchar*)(data+offset), w, new_h, format);
 
@@ -127,6 +147,16 @@ void DataVis::onScroll(int value)
     else if (value == scrollbar->maximum()) { // scrolling down
         loadNext(step, scrollbar->minimum()+1);
     }
+}
+
+int DataVis::calcPadding(long size) {
+    int highest = 0;
+    for (int i = 8; i <= max_w; i+=8) {
+        int pad = (i*depth) - (size % (i*depth));
+        if (pad > highest)
+            highest = pad;
+    }
+    return highest;
 }
 
 void DataVis::maskPadding()

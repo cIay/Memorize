@@ -46,8 +46,8 @@ MainWindow::~MainWindow()
 void MainWindow::loadFile()
 {
     sourcetype = NONE;
-    delete fd;
-    fd = new FileData(file.toStdString());
+    delete md; md = NULL;
+    delete fd; fd = new FileData(file.toStdString());
     if (fd->getBuffer() != NULL) {
         fd->padBuffer(dv->calcPadding(fd->getSize()));
         dv->loadData(fd->getBuffer(), fd->getSize());
@@ -56,8 +56,12 @@ void MainWindow::loadFile()
         QWidget::setWindowTitle("Memorize - [" + fn.right(fn.size() - fn.lastIndexOf('/') - 1) + "]");
         setLabeltext(dv->getOffset());
     }
-    else {
+    else if (fd->getSize() > fd->getMaxsize()){
         QMessageBox::warning(this, "Memorize", "Chosen file is too large. Maximum size: " + QString::number(fd->getMaxsize()/1000000) + " MB");
+    }
+    else {
+        setLabeltext(0);
+        dv->clearData();
     }
 }
 
@@ -72,16 +76,20 @@ void MainWindow::openFile()
 
 void MainWindow::loadProcess()
 {
-    QString pid = proc.mid(proc.lastIndexOf('(')+1, proc.lastIndexOf(')') - proc.lastIndexOf('(') - 1);
     sourcetype = NONE;
-    delete md;
-    md = new MemData(pid.toULong());
+    QString pid = proc.mid(proc.lastIndexOf('(') + 1, proc.lastIndexOf(')') - proc.lastIndexOf('(') - 1);
+    delete fd; fd = NULL;
+    delete md; md = new MemData(pid.toULong());
     if (md->getBuffer() != NULL) {
         md->padBuffer(dv->calcPadding(md->getSize()));
         dv->loadData((char*) md->getBuffer(), md->getSize());
         sourcetype = MEM;
         QWidget::setWindowTitle("Memorize - [" + proc + "]");
         setLabeltext(dv->getOffset());
+    }
+    else {
+        setLabeltext(0);
+        dv->clearData();
     }
 }
 
