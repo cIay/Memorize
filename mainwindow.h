@@ -31,14 +31,18 @@ private:
     MemData *md;
     QString file;
     QString proc;
+    void rmProcToolbarItems();
     void loadFile();
     void loadProcess();
     void setLabeltext(long);
+    void compare(bool);
 
 private slots:
     void onSlide(int);
     void onScroll(int);
     void reload();
+    void equal();
+    void diff();
     void openFile();
     void selectProcess();
 };

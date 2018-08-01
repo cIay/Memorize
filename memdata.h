@@ -15,8 +15,12 @@ public:
     static std::vector<std::wstring> getProcNamelist() { return proc_namelist; }
     static std::vector<DWORD> getProcIDlist() {return proc_idlist; }
     unsigned char* getBuffer() { return buf; }
-    long getSize(){ return size; }
+    long getSize() { return size; }
+    void** getRegions() { return regions; }
+    SIZE_T* getRegionSizes() { return region_sizes; }
+    int getNRegions() { return n_regions; }
     void* findAddr(long);
+    void cmpBytes(MemData*, bool);
 
 private:
     void readMem(DWORD);

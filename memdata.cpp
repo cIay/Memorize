@@ -2,6 +2,8 @@
 
 #include <tlhelp32.h>
 
+#include <QDebug.h>
+
 std::vector<std::wstring> MemData::proc_namelist;
 std::vector<DWORD> MemData::proc_idlist;
 
@@ -18,6 +20,106 @@ MemData::~MemData() {
     free(buf);
     free(regions);
     free(region_sizes);
+}
+
+void MemData::cmpBytes(MemData *md, bool diff)
+{
+    size = 0;
+    int new_n_regions = 0;
+    int max_n_regions = n_regions;
+    void **new_regions = (void**) malloc(max_n_regions * sizeof(void*));
+    if (new_regions == NULL) {
+        std::cerr << "Error: malloc() failed" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    SIZE_T *new_region_sizes = (SIZE_T*) malloc(max_n_regions * sizeof(SIZE_T));
+    if (new_region_sizes == NULL) {
+        std::cerr << "Error: malloc() failed" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    long index = 0;
+    for (int i = 0; i < n_regions; i++) {
+        bool newblock = true;
+        for (SIZE_T j = 0; j < region_sizes[i]; j++) {
+            void *addr = (unsigned char*) regions[i] + j;
+            unsigned char byte = buf[index + j];
+            unsigned char newbyte = byte;
+            bool equal = true;
+            long cmp_index = 0;
+            for (int k = 0; k < md->getNRegions(); k++) {
+                if (addr >= md->getRegions()[k] && addr < (unsigned char*) md->getRegions()[k] + md->getRegionSizes()[k]) {
+                    long long offset = (unsigned char*) addr - (unsigned char*) md->getRegions()[k];
+                    if (diff) {
+                        if (byte != md->getBuffer()[cmp_index + offset]) {
+                            /*
+                            qDebug() << "byte:" << (int)byte
+                                     << " cmpbyte:" << (int)md->getBuffer()[cmp_index + offset]
+                                     << " pos:" << index + j
+                                     << " cmppos:" << cmp_index + offset
+                                     << " addr:" << addr
+                                     << " cmpaddr:" << (unsigned char*) md->getRegions()[k] + offset;
+                                     */
+                            newbyte = (int)md->getBuffer()[cmp_index + offset];
+                            equal = false;
+                        }
+                    }
+                    else {
+                        if (byte == md->getBuffer()[cmp_index + offset]) {
+                            newbyte = (int)md->getBuffer()[cmp_index + offset];
+                            equal = false;
+                        }
+                    }
+                    break;
+                }
+                cmp_index += md->getRegionSizes()[k];
+            }
+
+            if (!equal) {
+                if (newblock) {
+                    new_n_regions++;
+                    if (new_n_regions > max_n_regions) {
+                        max_n_regions *= 2;
+                        new_regions = (void**) realloc(new_regions, max_n_regions * sizeof(void*));
+                        if (new_regions == NULL) {
+                            std::cerr << "Error: realloc() failed" << std::endl;
+                            exit(EXIT_FAILURE);
+                        }
+                        new_region_sizes = (SIZE_T*) realloc(new_region_sizes, max_n_regions * sizeof(SIZE_T));
+                        if (new_region_sizes == NULL) {
+                            std::cerr << "Error: realloc() failed" << std::endl;
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+                    new_regions[new_n_regions-1] = addr;
+                    new_region_sizes[new_n_regions-1] = 1;
+                }
+                else {
+                    new_region_sizes[new_n_regions-1]++;
+                }
+                buf[size] = newbyte;
+                size++;
+                newblock = false;
+            }
+            else {
+                newblock = true;
+            }
+        }
+        index += region_sizes[i];
+    }
+    free(regions); regions = new_regions;
+    free(region_sizes); region_sizes = new_region_sizes;
+    n_regions = new_n_regions;
+    if (size != 0) {
+        buf = (unsigned char*) realloc(buf, size*sizeof(unsigned char));
+        if (buf == NULL) {
+            std::cerr << "Error: realloc() failed" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+    else {
+        buf = NULL;
+    }
 }
 
 void MemData::padBuffer(int padding)

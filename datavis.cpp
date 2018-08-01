@@ -10,7 +10,7 @@ DataVis::DataVis(QWidget *parent, char *buf, long size, QImage::Format img_forma
     scrollbar(scrollarea->verticalScrollBar()),
     label(new QLabel(scrollarea)),
     pix(NULL),
-    w(20*8), h(1800),
+    w(28*8), h(1800),
     max_w(1024),
     offset(0),
     cur_scaling(1)

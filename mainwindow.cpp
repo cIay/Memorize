@@ -19,6 +19,9 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->mainToolBar->addSeparator();
     ui->mainToolBar->addAction(this->style()->standardIcon(QStyle::SP_BrowserReload), "Refresh", this, SLOT(reload()));
 
+    QFont f("Consolas", 10);
+    ui->addrLabel->setFont(f);
+
     dv = new DataVis(ui->containerWidget);
     dv->setMouseTracking(true);
     dv->installEventFilter(this);
@@ -43,6 +46,53 @@ MainWindow::~MainWindow()
     delete md;
 }
 
+void MainWindow::compare(bool diff)
+{
+    if (sourcetype == MEM) {
+        QString pid = proc.mid(proc.lastIndexOf('(') + 1, proc.lastIndexOf(')') - proc.lastIndexOf('(') - 1);
+        MemData *newmd = new MemData(pid.toULong());
+        if (newmd->getBuffer() != NULL) {
+            if (diff)
+                md->cmpBytes(newmd, true);
+            else
+                md->cmpBytes(newmd, false);
+        }
+        if (md->getSize() > 0) {
+            md->padBuffer(dv->calcPadding(md->getSize()));
+            dv->loadData((char*) md->getBuffer(), md->getSize());
+            QWidget::setWindowTitle("Memorize - [" + proc + "]");
+            setLabeltext(dv->getOffset());
+        }
+        else {
+            //sourcetype = NONE;
+            //QWidget::setWindowTitle("Memorize");
+            setLabeltext(0);
+            dv->clearData();
+        }
+        delete newmd;
+    }
+}
+
+void MainWindow::diff()
+{
+    compare(true);
+}
+
+void MainWindow::equal()
+{
+    compare(false);
+}
+
+void MainWindow::rmProcToolbarItems()
+{
+    QList<QAction*> act = ui->mainToolBar->actions();
+    for (QList<QAction*>::iterator i = act.begin(); i < act.end(); i++) {
+        if (((*i)->text().compare("Discard Unchanged Bytes") == 0) || ((*i)->text().compare("Keep Unchanged Bytes") == 0)) {
+            ui->mainToolBar->removeAction(*i);
+        }
+    }
+}
+
 void MainWindow::loadFile()
 {
     sourcetype = NONE;
@@ -55,6 +105,7 @@ void MainWindow::loadFile()
         QString fn = QString::fromStdString(fd->getFilename());
         QWidget::setWindowTitle("Memorize - [" + fn.right(fn.size() - fn.lastIndexOf('/') - 1) + "]");
         setLabeltext(dv->getOffset());
+        rmProcToolbarItems();
     }
     else if (fd->getSize() > fd->getMaxsize()){
         QMessageBox::warning(this, "Memorize", "Chosen file is too large. Maximum size: " + QString::number(fd->getMaxsize()/1000000) + " MB");
@@ -87,6 +138,10 @@ void MainWindow::loadProcess()
         sourcetype = MEM;
         QWidget::setWindowTitle("Memorize - [" + proc + "]");
         setLabeltext(dv->getOffset());
+        QList<QAction*> act = ui->mainToolBar->actions();
+        rmProcToolbarItems();
+        ui->mainToolBar->addAction(this->style()->standardIcon(QStyle::SP_DialogOkButton), "Keep Unchanged Bytes", this, SLOT(equal()));
+        ui->mainToolBar->addAction(this->style()->standardIcon(QStyle::SP_DialogDiscardButton), "Discard Unchanged Bytes", this, SLOT(diff()));
     }
     else {
         QWidget::setWindowTitle("Memorize");
@@ -112,28 +167,60 @@ void MainWindow::selectProcess()
 
 void MainWindow::reload()
 {
-    if (sourcetype == FILE)
-        loadFile();
-    else if (sourcetype == MEM)
-        loadProcess();
+    switch (sourcetype) {
+        case FILE:
+            loadFile();
+            break;
+        case MEM:
+            loadProcess();
+            break;
+        case NONE:
+            break;
+    }
 }
 
 void MainWindow::setLabeltext(long pos)
 {
     QString labeltext;
-    unsigned long long addr;
-    switch(sourcetype) {
+    QString bytes = "";
+    unsigned long long addr = 0;
+    unsigned char *buffer = NULL;
+
+    switch (sourcetype) {
         case FILE:
             addr = pos;
-            labeltext = "0x" + QString::number(addr, 16).rightJustified(11, '0');
+            buffer = (unsigned char*) fd->getBuffer();
             break;
         case MEM:
             addr = (unsigned long long) md->findAddr(pos);
-            labeltext = "0x" + QString::number(addr, 16).rightJustified(11, '0');
+            buffer = md->getBuffer();
             break;
         default:
             labeltext = "";
     }
+
+    if (sourcetype == FILE || sourcetype == MEM) {
+        if (buffer != NULL) {
+            for (int i = 0; i < dv->getPixelDepth(); i++) {
+                unsigned char c = buffer[pos+i];
+                bytes.append(QString::number(c).rightJustified(3, ' '));
+                /*
+                QChar ch(c);
+                bytes.append("(");
+                // ignore the "Separator" and "Other" unicode classes
+                // http://doc.qt.io/qt-5/qchar.html#Category-enum
+                if (ch.category() > 5 && ch.category() < 14)
+                    bytes.append("�");
+                else
+                    bytes.append(ch);
+                bytes.append(")");
+                */
+                bytes.append(" ");
+            }
+        }
+        labeltext = "0x" + QString::number(addr, 16).rightJustified(11, '0') + ": " + bytes;
+    }
+
     ui->addrLabel->setText(labeltext);
 }
 
